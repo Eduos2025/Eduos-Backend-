@@ -1,0 +1,270 @@
+# Laravel SMS Platform Backend Refactoring Walkthrough & Developer Guide
+
+We have successfully refactored the Laravel SMS & school management platform into a clean, reusable, **API-First REST Backend**. The application now supports modern client applications (Web, Flutter, React Native, custom clients) while maintaining 100% compatibility with the existing Blade-based web system.
+
+---
+
+## 1. System Architecture & Routing Design
+
+The refactored backend implements a clean separation of concerns, decoupling the delivery layer (REST API Controllers) from the database query and transaction layer (Repositories).
+
+```mermaid
+graph TD
+    Client[Mobile / Web Client] -->|Tenant Domain Request| DNS[Route Resolver]
+    DNS -->|tenant1.school.com| Bootstrap[bootstrap/app.php]
+    Bootstrap -->|Tenancy Bootstrappers| Tenancy[Stancl Tenancy Middleware]
+    Tenancy -->|Switches Database Connection| DBManager[Database Manager]
+    DBManager -->|Loads Tenant Database| DB[(Tenant DB)]
+    Tenancy -->|Applies Sanctum Guard| Sanctum[Sanctum Auth Middleware]
+    Sanctum -->|Authenticates Tenant Token| API[routes/api.php]
+    API -->|Dispatches Controller| Controllers[Api Controllers]
+    Controllers -->|Invokes business actions| Repositories[Repositories app/Repositories]
+    Repositories -->|Queries DB| DB
+    Controllers -->|Formats Standard JSON| Client
+```
+
+### Multi-Tenancy Resolution
+1. **Dynamic Database Connection**: We utilize Stancl Tenancy. When an API client requests `tenant1.yourdomain.com/api/v1/auth/login`, the `InitializeTenancyByDomain` middleware extracts the domain and automatically switches Laravel's default connection to that specific tenant's database.
+2. **Personal Access Tokens Segregation**: Since the migrations for Laravel Sanctum's token table are run in the tenant database (`database/migrations/tenant/2024_05_31_134359_create_personal_access_tokens_table.php`), tokens are issued and validated against the tenant's own database. This ensures strict isolation and excellent security.
+
+---
+
+## 2. API Endpoints Reference
+
+The backend exposes **44 clean, secure REST endpoints** divided into 9 logical modules.
+
+### A. Authentication & Session Module (`ApiAuthController`)
+* `POST /api/v1/auth/login` - Public login supporting multi-field lookup (Email, Phone, or Username). Returns a Sanctum Token, user info, and configuration parameters.
+* `POST /api/v1/auth/logout` - Revokes current authentication token.
+* `GET /api/v1/auth/me` - Fetches profile details of the logged-in user.
+* `PUT /api/v1/auth/profile` - Modifies profile details.
+* `PUT /api/v1/auth/password` - Updates account password.
+
+### B. User Management (`ApiUserController`)
+* `GET /api/v1/users` - Fetches list of users (filtered by user type).
+* `POST /api/v1/users` - Admits new user (Admins, Accountants, Librarians, Parents).
+* `GET /api/v1/users/{id}` - Details of a specific user.
+* `PUT /api/v1/users/{id}` - Modifies a user.
+* `DELETE /api/v1/users/{id}` - Soft-deletes a user.
+* `POST /api/v1/users/{id}/reset-password` - Resets a user's password to default.
+* `POST /api/v1/users/block-state` - Blocks or unblocks a user.
+
+### C. Student Admissions & Promotions (`ApiStudentController`)
+* `GET /api/v1/students` - Retrieves student lists (optionally filtered by class).
+* `POST /api/v1/students` - Processes student admission and auto-generates credentials.
+* `GET /api/v1/students/{id}` - Detailed student academic and demographic profile.
+* `PUT /api/v1/students/{id}` - Modifies student records.
+* `DELETE /api/v1/students/{id}` - Deletes student record.
+* `POST /api/v1/students/block-class` - Blocks or unblocks all students of a class.
+
+### D. Academics Metadata (`ApiClassSectionSubjectController`)
+* `GET /api/v1/classes` - List of all classes.
+* `GET /api/v1/sections/{class_id}` - Sections belonging to a class.
+* `GET /api/v1/subjects/{class_id}` - Subjects registered under a class.
+
+### E. Gradebooks & Examinations (`ApiMarkAssessmentController`)
+* `GET /api/v1/exams` - Lists all examinations.
+* `GET /api/v1/marks/manage/{exam_id}/{class_id}/{subject_id}/{section_id?}` - Loads gradebook student marks list for inputting grades.
+* `POST /api/v1/marks/update` - Bulk updates marks, averages, positions class-wise and section-wise.
+* `GET /api/v1/tabulation/{exam_id}/{class_id}/{section_id}/{year}` - Computes term tabulation sheet.
+
+### F. Fee Payments & Billing (`ApiPaymentController`)
+* `GET /api/v1/payments` - Retrieves billing records and fee history.
+* `GET /api/v1/payments/invoice/{student_id}/{year?}` - Fetches invoice lists (split by cleared and uncleared fees).
+* `POST /api/v1/payments/pay/{pr_id}` - Registers fee payments, creates a receipt record, and dispatches SMS/email notifications to parents.
+* `GET /api/v1/payments/receipt/{pr_id}` - Details of receipt logs.
+
+### G. Messaging & Chat Platform (`ApiMessageController`)
+* `GET /api/v1/messages` - Gets conversation threads.
+* `GET /api/v1/messages/{id}` - Retrieves individual messages in a thread.
+* `POST /api/v1/messages` - Creates a conversation thread.
+* `POST /api/v1/messages/{id}/reply` - Appends a reply.
+
+### H. Support Tickets (`ApiTicketController`)
+* `GET /api/v1/tickets` - List of support tickets.
+* `POST /api/v1/tickets` - Opens a support request.
+* `GET /api/v1/tickets/{id}` - Detailed ticket history.
+* `POST /api/v1/tickets/{id}/reply` - Appends a client message.
+* `POST /api/v1/tickets/{id}/close` - Marks ticket as closed.
+
+### I. Common Utility Lookups (`ApiUtilityController`)
+* `GET /api/v1/utilities/nationalities` - All nationalities.
+* `GET /api/v1/utilities/states/{nal_id}` - States in a nationality.
+* `GET /api/v1/utilities/lgas/{state_id}` - LGAs in a state.
+* `GET /api/v1/utilities/class-students/{class_id}` - Simple student lookups.
+* `GET /api/v1/utilities/class-subjects/{class_id}` - Simple subject lookups.
+
+---
+
+## 3. Standardized Response Format
+
+Every REST response follows a predictable, highly developer-friendly structure.
+
+### Success Response (HTTP 200/211)
+```json
+{
+  "success": true,
+  "data": {
+    "token": "3|zR45...token_content...",
+    "user": {
+      "id": "eOp9g8Y5aZ",
+      "name": "JOHN DOE",
+      "email": "john.doe@school.edu",
+      "user_type": "admin"
+    }
+  },
+  "message": "User logged in successfully."
+}
+```
+
+### Error Response (HTTP 400/403/404)
+```json
+{
+  "success": false,
+  "message": "User not found."
+}
+```
+
+### Validation Error Response (HTTP 422)
+```json
+{
+  "success": false,
+  "message": "Validation Error.",
+  "errors": {
+    "name": [
+      "The name field is required."
+    ],
+    "phone": [
+      "The phone must start with a valid country code."
+    ]
+  }
+}
+```
+
+---
+
+## 4. Multi-Client Integration Guide
+
+To consume this backend from multiple platforms, you must configure request headers correctly.
+
+### A. Axios / Web Frontends Integration
+```javascript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://tenant1.yourschool.com/api/v1',
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+});
+
+// Interceptor to inject bearer token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const login = async (loginCredential, password) => {
+  try {
+    const response = await api.post('/auth/login', {
+      login: loginCredential,
+      password: password
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error;
+  }
+};
+```
+
+### B. Flutter Mobile Application Integration (using Dio)
+```dart
+import 'package:dio/dio.dart';
+
+class ApiService {
+  final Dio _dio = Dio();
+  
+  ApiService(String tenantSubdomain) {
+    _dio.options.baseUrl = 'http://$tenantSubdomain.yourschool.com/api/v1';
+    _dio.options.headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+    
+    // Inject auth token interceptor
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        String? token = await getSavedToken(); // Fetch from secure storage
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        return handler.next(options);
+      },
+    ));
+  }
+
+  Future<Response> login(String login, String password) async {
+    try {
+      Response response = await _dio.post('/auth/login', data: {
+        'login': login,
+        'password': password,
+      });
+      return response;
+    } on DioException catch (e) {
+      throw e.response?.data ?? 'Connection error';
+    }
+  }
+}
+```
+
+### C. React Native Integration
+```typescript
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const apiClient = axios.create({
+  baseURL: 'https://school1.yourschool.com/api/v1',
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+});
+
+apiClient.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('user_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default apiClient;
+```
+
+---
+
+## 5. Postman Collection Configuration
+
+To test these APIs using Postman:
+1. **Dynamic Environment Variable**: Create an environment and define:
+   * `base_url`: `http://tenant1.localhost:8000/api/v1`
+   * `token`: `{{your_sanctum_token}}`
+2. **Authorize Collection**: Select the collection root -> **Authorization** -> Type: **Bearer Token** -> Token: `{{token}}`. This guarantees that every request inherits authorization automatically once logged in!
+3. **Login Request Script**: In the `POST /auth/login` request, add the following script under the **Tests** tab to store the token automatically:
+   ```javascript
+   const response = pm.response.json();
+   if (response.success && response.data.token) {
+       pm.environment.set("token", response.data.token);
+   }
+   ```
+
+---
+
+## 6. Maintenance, Upgrades, & Versioning
+
+1. **API Versioning**: Currently registered under `/api/v1`. To make upgrades or breaking changes in the future, simply register a new route group `/api/v2` inside `bootstrap/app.php` and map it to a `v2` controllers subdirectory without affecting `v1` clients.
+2. **Adding Custom Features**: When adding Vtus, digital utility payments, or other services, build a clean repository first (`app/Repositories/VtuRepo.php`), inject it into a dedicated API controller (`app/Http/Controllers/Api/ApiVtuController.php`), and register routes inside `routes/api.php`. This keeps the architecture pristine, modular, and 100% reusable across all future projects.

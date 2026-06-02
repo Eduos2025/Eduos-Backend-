@@ -19,10 +19,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable, SoftDeletes, Messagable, CanResetPassword, LogsActivity;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, Messagable, CanResetPassword, LogsActivity;
 
     /**
      * The attributes that are mass assignable.

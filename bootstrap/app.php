@@ -22,6 +22,15 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('web')
                 ->namespace('App\\Http\\Controllers')
                 ->group(base_path('routes/tenant.php'));
+
+            Route::middleware([
+                'api',
+                \Stancl\Tenancy\Middleware\InitializeTenancyByDomain::class,
+                \Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains::class,
+            ])
+                ->prefix('api/v1')
+                ->namespace('App\\Http\\Controllers\\Api')
+                ->group(base_path('routes/api.php'));
         }
     )
     ->withMiddleware(function (Middleware $middleware) {
