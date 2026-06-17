@@ -17,6 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->domain($domain)
                     ->namespace('App\\Http\\Controllers')
                     ->group(base_path('routes/web.php'));
+
+                // Central API Routes (For mobile onboarding/payments)
+                Route::middleware('api')
+                    ->domain($domain)
+                    ->prefix('api/saas')
+                    ->namespace('App\\Http\\Controllers\\Api')
+                    ->group(base_path('routes/central_api.php'));
             }
 
             Route::middleware('web')
