@@ -18,6 +18,26 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return $this->hasOne(TenantDomain::class);
     }
 
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class);
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function activeSubscription()
+    {
+        return $this->hasOne(Subscription::class)->where('status', '!=', 'expired');
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

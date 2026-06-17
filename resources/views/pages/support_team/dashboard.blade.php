@@ -8,6 +8,29 @@
 @php session()->flash('pop_warning_confirm', __('msg.session_and_year_not_matched')) @endphp
 @endif
 
+@if (isset($setup_tracker) && $setup_progress_percent < 100)
+<div class="card border-left-info mb-3">
+    <div class="card-header header-elements-inline">
+        <h6 class="card-title text-info font-weight-bold">School Onboarding & Setup Progress ({{ $setup_progress_percent }}% Complete)</h6>
+    </div>
+    <div class="card-body">
+        <div class="progress mb-3" style="height: 8px;">
+            <div class="progress-bar bg-info" style="width: {{ $setup_progress_percent }}%"></div>
+        </div>
+        <div class="row text-center">
+            @foreach ($setup_tracker as $label => $completed)
+                <div class="col-md col-6 mb-2">
+                    <span class="material-symbols-rounded {{ $completed ? 'text-success' : 'text-danger' }} symbol-sm align-middle mr-1">
+                        {{ $completed ? 'check_circle' : 'cancel' }}
+                    </span>
+                    <span class="small text-muted">{{ $label }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
+
 @if (Qs::userIsAdministrative() or Qs::userIsLibrarian())
 
 @php

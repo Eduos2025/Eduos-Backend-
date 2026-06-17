@@ -8,6 +8,11 @@
     <a href="{{ route('tenants.index') }}" class="nav-link {{ in_array(Route::currentRouteName(), ['tenants.index', 'tenants.edit']) ? 'active' : '' }}"><i class="material-symbols-rounded">manage_accounts</i> <span>Tenants</span></a>
 </li>
 
+{{--Manage Subscriptions--}}
+<li class="nav-item">
+    <a href="{{ route('saas.admin.subscriptions') }}" class="nav-link {{ in_array(Route::currentRouteName(), ['saas.admin.subscriptions']) ? 'active' : '' }}"><i class="material-symbols-rounded">workspace_premium</i> <span>Subscriptions</span></a>
+</li>
+
 {{--Manage Settings--}}
 <li class="nav-item">
     <a href="{{ route('settings_non_tenancy.index') }}" class="nav-link {{ in_array(Route::currentRouteName(), ['settings_non_tenancy.index']) ? 'active' : '' }}"><i class="material-symbols-rounded">settings</i> <span>Settings</span></a>

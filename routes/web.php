@@ -17,6 +17,30 @@ use Illuminate\Support\Facades\Route;
 
 Auth::routes();
 
+// Public SaaS routes
+Route::get('/', [App\Http\Controllers\SaaSController::class, 'landing'])->name('saas.landing');
+Route::get('/pricing', [App\Http\Controllers\SaaSController::class, 'pricing'])->name('saas.pricing');
+Route::get('/features', [App\Http\Controllers\SaaSController::class, 'features'])->name('saas.features');
+Route::get('/contact', [App\Http\Controllers\SaaSController::class, 'contact'])->name('saas.contact');
+Route::get('/demo', [App\Http\Controllers\SaaSController::class, 'demoRequest'])->name('saas.demo');
+Route::post('/demo', [App\Http\Controllers\SaaSController::class, 'storeDemoRequest'])->name('saas.demo.store');
+
+// Onboarding wizard
+Route::prefix('onboard')->group(function () {
+    Route::get('/', [App\Http\Controllers\OnboardingController::class, 'wizard'])->name('onboard.wizard');
+    Route::post('/register', [App\Http\Controllers\OnboardingController::class, 'register'])->name('onboard.register');
+    Route::get('/payment/{tenant_hash}', [App\Http\Controllers\OnboardingController::class, 'paymentPage'])->name('onboard.payment');
+    Route::post('/process-trial/{tenant_hash}', [App\Http\Controllers\OnboardingController::class, 'processTrial'])->name('onboard.process_trial');
+    Route::get('/success/{tenant_hash}', [App\Http\Controllers\OnboardingController::class, 'successPage'])->name('onboard.success');
+});
+
+// Central APIs
+Route::get('/api/check-subdomain', [App\Http\Controllers\OnboardingController::class, 'checkSubdomain'])->name('api.check_subdomain');
+
+// Central Webhooks
+Route::post('/webhook/paystack', [App\Http\Controllers\PaymentWebhookController::class, 'paystackWebhook'])->name('webhook.paystack');
+Route::post('/webhook/flutterwave', [App\Http\Controllers\PaymentWebhookController::class, 'flutterwaveWebhook'])->name('webhook.flutterwave');
+
 Route::group(['middleware' => ['auth', 'checkForPassUpdate', 'itGuy', 'handleCookie']], function () {
     /*************** Two factor authentication *****************/
     Route::group(['prefix' => 'auth/2fa'], function () {
@@ -57,9 +81,9 @@ Route::group(['middleware' => ['auth', 'checkForPassUpdate', 'itGuy', 'handleCoo
             });
 
             /*************** Dashboard **************/
-            Route::get('/', 'HomeController@dashboard')->name('index');
+            Route::get('dashboard', 'HomeController@dashboard')->name('index');
             Route::get('home', 'HomeController@dashboard')->name('home');
-            Route::get('dashboard', 'HomeController@dashboard')->name('dashboard');
+            Route::get('portal-dashboard', 'HomeController@dashboard')->name('dashboard');
 
             /************* Logs ************/
             Route::group(['prefix' => 'logs'], function () {
@@ -114,6 +138,14 @@ Route::group(['middleware' => ['auth', 'checkForPassUpdate', 'itGuy', 'handleCoo
 
             Route::group(['prefix' => 'tenants'], function () {
                 Route::post('run_command/{command_name}/{tenant_id}', 'ArtisanCommandsController@tenants_command_runner')->name('tenants.run_command');
+            });
+
+            Route::group(['prefix' => 'saas'], function () {
+                Route::get('subscriptions', 'SaaSAdminController@subscriptionsIndex')->name('saas.admin.subscriptions');
+                Route::post('subscriptions/{tenant_id}/suspend', 'SaaSAdminController@suspendTenant')->name('saas.admin.suspend');
+                Route::post('subscriptions/{tenant_id}/activate', 'SaaSAdminController@activateTenant')->name('saas.admin.activate');
+                Route::post('subscriptions/{tenant_id}/upgrade', 'SaaSAdminController@upgradePlan')->name('saas.admin.upgrade');
+                Route::post('subscriptions/{tenant_id}/extend', 'SaaSAdminController@extendSubscription')->name('saas.admin.extend');
             });
 
             /*************** Controller's resources **************/

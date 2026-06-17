@@ -52,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'myParent' => \App\Http\Middleware\Custom\MyParent::class,
             '2fa' => \PragmaRX\Google2FALaravel\Middleware::class,
             'itGuy' => \App\Http\Middleware\Custom\ITGuy::class,
+            'subscriptionActive' => \App\Http\Middleware\EnsureSubscriptionIsActive::class,
         ]);
         $middleware->encryptCookies(except: [
             'do_not_show_els_with_these_ids_again',

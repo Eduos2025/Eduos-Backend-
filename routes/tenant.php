@@ -32,7 +32,7 @@ Route::middleware([
 
     Auth::routes();
 
-    Route::group(['middleware' => ['auth', 'checkForPassUpdate', 'handleCookie']], function () {
+    Route::group(['middleware' => ['auth', 'checkForPassUpdate', 'handleCookie', 'subscriptionActive']], function () {
         /*************** Two factor authentication *****************/
         Route::group(['prefix' => 'auth/2fa'], function () {
             Route::get('account_security', 'Auth\AccountSecurityController@index')->name('account_security.index')->middleware('2fa');
@@ -405,6 +405,10 @@ Route::middleware([
 
             // Resource
             Route::resource('tickets', 'TicketController');
+
+            // Tenant Billing
+            Route::get('/billing', [\App\Http\Controllers\Tenant\BillingController::class, 'index'])->name('tenant.billing');
+            Route::post('/billing/pay', [\App\Http\Controllers\Tenant\BillingController::class, 'processPayment'])->name('tenant.billing.pay');
         });
     });
 

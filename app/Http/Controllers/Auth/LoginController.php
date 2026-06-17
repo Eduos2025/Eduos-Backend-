@@ -32,7 +32,7 @@ class LoginController extends Controller implements HasMiddleware
      *
      * @var string
      */
-    protected $redirectTo = '/';
+    protected $redirectTo = '/dashboard';
 
     protected $cookie;
 

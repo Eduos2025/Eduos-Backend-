@@ -108,6 +108,19 @@ class HomeController extends Controller
         $d["viewed_notices"] = $vn_paginated;
         $d["is_ajax_req"] = false;
 
+        // Tenant Setup Progress Tracker
+        if (Qs::userIsSuperAdmin()) {
+            $setup = [
+                'School Logo Uploaded' => \App\Models\Setting::where('type', 'logo')->whereNotNull('description')->where('description', '!=', '')->exists(),
+                'Academic Classes Created' => \App\Models\MyClass::exists(),
+                'Subjects Configured' => \App\Models\Subject::exists(),
+                'Staff Members Added' => \App\Models\StaffRecord::exists(),
+                'Students Enrolled' => \App\Models\StudentRecord::exists(),
+            ];
+            $d['setup_tracker'] = $setup;
+            $d['setup_progress_percent'] = round((count(array_filter($setup)) / count($setup)) * 100);
+        }
+
         return view('pages.support_team.dashboard', $d);
     }
 

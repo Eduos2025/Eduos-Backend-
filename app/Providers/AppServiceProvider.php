@@ -37,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
         LogViewer::auth(fn($request) => $request->user() && $request->user()->user_type === 'it_guy');
 
         Event::subscribe(TenantEventSubscriber::class);
+        Event::listen(\App\Events\SubscriptionLifecycleEvent::class, \App\Listeners\SendSubscriptionEmailNotification::class);
 
         Paginator::useBootstrapFour();
     }
